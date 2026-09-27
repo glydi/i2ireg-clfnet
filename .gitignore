@@ -1,0 +1,19 @@
+# environment
+.venv/
+__pycache__/
+*.pyc
+
+# datasets (download with: start menu -> Download datasets)
+data/
+
+# cached ImageNet weights (re-downloaded automatically)
+weights/
+
+# duplicate checkpoints (best.pt is kept)
+runs/**/last.pt
+runs/_*/
+
+# misc
+*.part
+.DS_Store
+.gradio/

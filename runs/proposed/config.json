@@ -1,0 +1,18 @@
+{
+ "arch": "i2ireg_clfnet",
+ "deep": "squeezenet",
+ "shallow": true,
+ "cbam": true,
+ "head": "regression",
+ "init_reg": "/home/qb/major_project/i2ireg_clfnet/runs/i2ireg/best.pt",
+ "epochs": 4,
+ "batch_size": 16,
+ "lr": 0.0001,
+ "w_reg": 0.8,
+ "w_clf": 0.2,
+ "val_fraction": 0.1,
+ "augment": true,
+ "limit": 1000,
+ "workers": null,
+ "seed": 0
+}
