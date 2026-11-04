@@ -28,6 +28,7 @@ from src.data import KSTR_DIR, KSTR_RAW, kstr_unique_rows, load_gray, load_mask,
 from src.engine import pick_device  # noqa: E402
 from src.gradcam import overlay  # noqa: E402
 from src.inference import list_runs, load_run, predict  # noqa: E402
+from src.localize import draw_boxes, localize  # noqa: E402
 
 DEV = pick_device()
 _cache: dict[str, tuple] = {}
@@ -76,7 +77,13 @@ def detect(file_path, run, thr):
     roi = rgb(p["roi"]) if p["roi"] is not None else None
     explained = "Stone +" if p["cam_class"] == 1 else "Stone −"
     info = f"**{verdict}**  P(stone) = {prob:.3f}"
-    return {"Stone +": prob, "Stone −": 1 - prob}, info, rgb(p["image"]), roi, p["cam_overlay"], cam_img
+    boxes = localize(p["cam"], p["roi"]) if prob >= thr else []
+    loc_img = draw_boxes(rgb(p["image"]), boxes)
+    if boxes:
+        lines = [f"- {b['side']}, centre ({b['center'][0]:.0f}, {b['center'][1]:.0f}) px, score {b['score']:.2f}"
+                 for b in boxes]
+        info += "\n\nApproximate location (Grad-CAM, not a segmentation):\n" + "\n".join(lines)
+    return {"Stone +": prob, "Stone −": 1 - prob}, info, rgb(p["image"]), roi, p["cam_overlay"], cam_img, loc_img
 
 
 # ------------------------------------------------------------------------------ Compare tab
@@ -274,26 +281,31 @@ def build():
     with gr.Blocks(title="I2IReg-ClfNet · kidney stone detection") as demo:
         gr.Markdown("## I2IReg-ClfNet kidney stone detection")
         with gr.Tab("Detect"):
-            with gr.Row():
-                with gr.Column(scale=1):
-                    f = gr.Image(label="CT slice (click a sample below or upload)", type="filepath", height=300)
-                    run = gr.Dropdown(runs, value=roi_runs[0] if roi_runs else None, label="Model run",
-                                      allow_custom_value=False)
-                    thr = gr.Slider(0.05, 0.95, 0.5, step=0.05, label="Decision threshold")
-                    btn = gr.Button("Detect", variant="primary")
+            with gr.Row(equal_height=False):
+                with gr.Column(scale=4, min_width=300):
+                    f = gr.Image(label="CT slice", type="filepath", height=340, sources=["upload", "clipboard"])
+                    btn = gr.Button("Detect stone", variant="primary", size="lg")
+                    with gr.Accordion("Settings", open=False):
+                        run = gr.Dropdown(runs, value=roi_runs[0] if roi_runs else None, label="Model run")
+                        thr = gr.Slider(0.05, 0.95, 0.5, step=0.05, label="Decision threshold")
                     ex = examples()
                     if ex:
-                        gr.Examples(ex, inputs=[f], label="Samples (stone_* / normal_*)", examples_per_page=8)
-                with gr.Column(scale=2):
+                        gr.Examples(ex, inputs=[f], label="Try a sample", examples_per_page=8)
+                with gr.Column(scale=6, min_width=360):
                     lab = gr.Label(label="Prediction", num_top_classes=2)
                     info = gr.Markdown()
-                    with gr.Row():
-                        o1 = gr.Image(label="Input (224×224)", height=260)
-                        o2 = gr.Image(label="Predicted kidney ROI (I2IRegNet)", height=260)
-                    with gr.Row():
-                        o3 = gr.Image(label="Grad-CAM on ClfNet input (ROI)", height=260)
-                        o4 = gr.Image(label="Grad-CAM on original slice", height=260)
-            btn.click(detect, [f, run, thr], [lab, info, o1, o2, o3, o4])
+                    with gr.Tabs():
+                        with gr.Tab("Location"):
+                            o5 = gr.Image(show_label=False, height=380)
+                        with gr.Tab("Grad-CAM"):
+                            o4 = gr.Image(label="On original slice", height=380)
+                        with gr.Tab("Kidney ROI"):
+                            with gr.Row():
+                                o1 = gr.Image(label="Input (224×224)", height=300)
+                                o2 = gr.Image(label="Predicted ROI", height=300)
+                                o3 = gr.Image(label="Grad-CAM on ROI", height=300)
+            btn.click(detect, [f, run, thr], [lab, info, o1, o2, o3, o4, o5])
+            f.change(detect, [f, run, thr], [lab, info, o1, o2, o3, o4, o5])
         with gr.Tab("Evaluate folder"):
             with gr.Row():
                 with gr.Column(scale=1):
