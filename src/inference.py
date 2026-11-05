@@ -36,7 +36,7 @@ def list_runs() -> list[str]:
     for p in sorted((ROOT / "runs").glob("*/**/best.pt")):
         d = p.parent
         if (d / "config.json").exists() or (d.parent / "config.json").exists():
-            out.append(str(d.relative_to(ROOT)))
+            out.append(d.relative_to(ROOT).as_posix())
     return out
 
 

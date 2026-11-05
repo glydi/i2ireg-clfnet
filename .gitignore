@@ -17,3 +17,6 @@ runs/_*/
 *.part
 .DS_Store
 .gradio/
+
+# run logs
+*.log
